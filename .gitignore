@@ -28,3 +28,6 @@ run_server
 .DS_Store
 
 ._git
+
+# dev temp
+temp_decompile/

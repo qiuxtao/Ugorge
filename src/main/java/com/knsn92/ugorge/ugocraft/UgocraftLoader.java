@@ -1,5 +1,7 @@
 package com.knsn92.ugorge.ugocraft;
 
+import com.knsn92.ugorge.ugocraft.visitor.*;
+
 import com.knsn92.ugorge.util.ByteArrayClassLoader;
 import com.knsn92.ugorge.util.MultiClassVisitor;
 import com.knsn92.ugorge.util.MultiClassVisitorContext;
@@ -34,11 +36,12 @@ public class UgocraftLoader {
     private static final Remapper rewriteListRemapper = new Remapper() {
         @Override
         public Object mapValue(Object value) {
-            if(!(value instanceof String)) return value;
-            String name = (String)value;
-            if(ArrayUtils.contains(UgocraftClassData.rewriteListClasses, name)) {
+            if (!(value instanceof String))
+                return value;
+            String name = (String) value;
+            if (ArrayUtils.contains(UgocraftClassData.rewriteListClasses, name)) {
                 String mappedName = FMLDeobfuscatingRemapper.INSTANCE.map(name);
-                return mappedName.substring(mappedName.lastIndexOf(File.separator)+1);
+                return mappedName.substring(mappedName.lastIndexOf('/') + 1);
             }
             return value;
         }
@@ -47,16 +50,20 @@ public class UgocraftLoader {
     static {
         ugocraftClassVisitorContext = new MultiClassVisitorContext();
 
-        ugocraftClassVisitorContext.put("net/maocat/Loader/Boot/RewriteList", (api, cv) -> new RemappingClassAdapter(cv, rewriteListRemapper));
+        ugocraftClassVisitorContext.put("net/maocat/Loader/Boot/RewriteList",
+                (api, cv) -> new RemappingClassAdapter(cv, rewriteListRemapper));
         ugocraftClassVisitorContext.put("net/maocat/Loader/Boot/ClassRewrite", ClassRewriteVisitor::new);
         ugocraftClassVisitorContext.put("net/maocat/Loader/Process/Shub_Niggurath", EntityRenderLoaderVisitor::new);
         ugocraftClassVisitorContext.put("net/maocat/UgoCraft/a/Azathoth", CannonGUISlotOffsetVisitor::new);
+        ugocraftClassVisitorContext.put("net/maocat/Loader/Process/Client/Byakhee",
+                (api, cv) -> new DeobfuscationVisitor(api, new SoundFixVisitor(api, cv)));
 
         ugocraftClassVisitorContext.setDefault(DeobfuscationVisitor::new);
     }
 
     /**
      * UgoCraftをJarファイルからロードし、書き換え、保存します。
+     * 
      * @param ugocraftJarFile UgoCraftのjarファイル
      * @throws IOException UgoCraftのjarファイルの参照に失敗したとき
      */
@@ -65,8 +72,8 @@ public class UgocraftLoader {
 
         JarInputStream jis = new JarInputStream(Files.newInputStream(ugocraftJarFile.toPath()));
         JarEntry entry;
-        while((entry = jis.getNextJarEntry()) != null) {
-            if(entry.getName().endsWith(".class")) {
+        while ((entry = jis.getNextJarEntry()) != null) {
+            if (entry.getName().endsWith(".class")) {
 
                 ClassReader cr = new ClassReader(jis);
 
@@ -80,14 +87,14 @@ public class UgocraftLoader {
 
                 String className = cr.getClassName();
 
-                if(ArrayUtils.contains(UgocraftClassData.rewriteListClasses, className)) {
+                if (ArrayUtils.contains(UgocraftClassData.rewriteListClasses, className)) {
                     continue;
                 }
 
-                className = className.replace(File.separator, ".");
+                className = className.replace("/", ".");
                 ugocraftClassLoader.putClass(className, classBytes);
-            }else {
-                String resourceURLStr = "jar:file:" + ugocraftJarFile + "!" + File.separator + entry.getName();
+            } else {
+                String resourceURLStr = "jar:" + ugocraftJarFile.toURI().toString() + "!/" + entry.getName();
                 URL resourceURL = new URL(resourceURLStr);
                 ugocraftClassLoader.putResource(entry.getName(), resourceURL);
             }
@@ -96,11 +103,13 @@ public class UgocraftLoader {
 
     /**
      * JarファイルからロードしたUgoCraftのクラスを読み出します。
+     * 
      * @param className 読み出すクラス名(例:java.lang.Object)
      * @return 読み出したクラスオブジェクト。見つからなければnull
      */
     public static Class<?> getClass(String className) {
-        if(ugocraftClassLoader == null) return null;
+        if (ugocraftClassLoader == null)
+            return null;
         try {
             return ugocraftClassLoader.loadClass(className);
         } catch (ClassNotFoundException ignore) {
@@ -110,6 +119,7 @@ public class UgocraftLoader {
 
     /**
      * 内部で使われているクラスローダーのgetter。
+     * 
      * @return 内部で使われているクラスローダー
      */
     public static ClassLoader getClassLoader() {
@@ -118,8 +128,9 @@ public class UgocraftLoader {
 
     /**
      * 処理を変換したUgoCraftをJarとして書き出します。
+     * 
      * @param ugocraftJarFile UgoCraftのjarファイル
-     * @param output 出力のファイル
+     * @param output          出力のファイル
      * @throws IOException UgoCraftのjarファイルの参照に失敗したとき
      */
     public static void createJar(File ugocraftJarFile, File output) throws IOException {
@@ -127,8 +138,8 @@ public class UgocraftLoader {
         JarOutputStream jos = new JarOutputStream(Files.newOutputStream(output.toPath()));
 
         JarEntry entry;
-        while((entry = jis.getNextJarEntry()) != null) {
-            if(entry.getName().endsWith(".class")) {
+        while ((entry = jis.getNextJarEntry()) != null) {
+            if (entry.getName().endsWith(".class")) {
 
                 ClassReader cr = new ClassReader(jis);
 
@@ -142,19 +153,20 @@ public class UgocraftLoader {
 
                 String className = entry.getName();
 
-                if(entry.getName().startsWith("rewrite/")) {
-                    String rewriteClassName = className.substring(className.lastIndexOf(File.separator)+1, className.indexOf("."));
+                if (entry.getName().startsWith("rewrite/")) {
+                    String rewriteClassName = className.substring(className.lastIndexOf('/') + 1,
+                            className.indexOf("."));
                     String mcpName = FMLDeobfuscatingRemapper.INSTANCE.map(rewriteClassName);
-                    className = "rewrite/"+mcpName.substring(mcpName.lastIndexOf(File.separator)+1)+".class";
+                    className = "rewrite/" + mcpName.substring(mcpName.lastIndexOf('/') + 1) + ".class";
                 }
 
                 jos.putNextEntry(new JarEntry(className));
                 jos.write(classBytes);
-            }else{
+            } else {
                 jos.putNextEntry(new JarEntry(entry.getName()));
                 byte[] buffer = new byte[1024];
                 int read;
-                while((read = jis.read(buffer)) != -1) {
+                while ((read = jis.read(buffer)) != -1) {
                     jos.write(buffer, 0, read);
                 }
             }

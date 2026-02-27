@@ -57,6 +57,8 @@ public class UgocraftLoader {
         ugocraftClassVisitorContext.put("net/maocat/UgoCraft/a/Azathoth", CannonGUISlotOffsetVisitor::new);
         ugocraftClassVisitorContext.put("net/maocat/Loader/Process/Client/Byakhee",
                 (api, cv) -> new DeobfuscationVisitor(api, new SoundFixVisitor(api, cv)));
+        ugocraftClassVisitorContext.put("net/maocat/UgoCraft/Zoth_Ommog",
+                (api, cv) -> new DeobfuscationVisitor(api, new ZothOmmogFixVisitor(api, cv)));
 
         ugocraftClassVisitorContext.setDefault(DeobfuscationVisitor::new);
     }

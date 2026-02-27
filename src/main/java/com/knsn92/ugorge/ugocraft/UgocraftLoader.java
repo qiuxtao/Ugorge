@@ -59,6 +59,8 @@ public class UgocraftLoader {
                 (api, cv) -> new DeobfuscationVisitor(api, new SoundFixVisitor(api, cv)));
         ugocraftClassVisitorContext.put("net/maocat/UgoCraft/Zoth_Ommog",
                 (api, cv) -> new DeobfuscationVisitor(api, new ZothOmmogFixVisitor(api, cv)));
+        ugocraftClassVisitorContext.put("net/maocat/UgoCraft/Nyogtha",
+                (api, cv) -> new NyogthaTimeFixVisitor(api, new DeobfuscationVisitor(api, cv)));
 
         ugocraftClassVisitorContext.setDefault(DeobfuscationVisitor::new);
     }
